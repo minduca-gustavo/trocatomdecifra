@@ -56,6 +56,15 @@
   .panel{background:#fffdf7;border:1px solid #e2d5b3;border-radius:10px;padding:18px 20px 20px;}
   .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;}
   .panel-head h2{font-family:var(--serif);font-size:16px;margin:0;font-weight:normal;color:var(--ink-soft);}
+  .panel-head h2 .hint{font-family:var(--sans);font-size:11.5px;font-weight:normal;color:var(--ink-soft);opacity:.8;}
+  #reviewPanel{margin-top:20px;}
+  .checklist{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;}
+  .checklist-row{display:flex;align-items:center;gap:9px;padding:4px 6px;border-radius:6px;cursor:pointer;}
+  .checklist-row:hover{background:var(--paper-dark);}
+  .checklist-row input[type=checkbox]{accent-color:var(--teal);width:15px;height:15px;flex:none;cursor:pointer;}
+  .checklist-row .checklist-text{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);white-space:pre;overflow:hidden;text-overflow:ellipsis;}
+  .checklist-row.is-chord .checklist-text{color:var(--teal);font-weight:600;}
+  .checklist-empty{font-size:12.5px;color:var(--ink-soft);font-style:italic;padding:4px 6px;}
   .panel-head .right{display:flex;align-items:center;gap:10px;}
   #input, #output{
     min-height:220px;
@@ -141,6 +150,13 @@
     </div>
   </div>
 
+  <div class="panel" id="reviewPanel">
+    <div class="panel-head">
+      <h2>Revisar linhas <span class="hint">— marque "é cifra" pra forçar a transposição em linhas que não foram detectadas (intro, final, repetições etc.)</span></h2>
+    </div>
+    <div id="lineChecklist" class="checklist"></div>
+  </div>
+
   <footer>
     O transpositor detecta sozinho as linhas de acorde (quando a maioria das "palavras" da linha parece um acorde) e troca só essas — negrito, cor, fonte e o resto da letra ficam como colados. TABs e espaços múltiplos são preservados; use o seletor acima se o alinhamento não bater com o tamanho de TAB da sua fonte original. <strong>Limite conhecido:</strong> se um editor de origem quebrar um acorde em dois trechos de formatação diferentes no meio da palavra (raro), aquele acorde específico pode não ser reconhecido — nesse caso, cole de novo sem a formatação problemática nesse trecho.
   </footer>
@@ -191,6 +207,13 @@ function isChordLine(text){
   const matches = tokens.filter(t=>CHORD_RE.test(t)).length;
   return matches/tokens.length >= 0.6;
 }
+// Manual "É CIFRA" overrides, keyed by the line's own text. Auto-detection
+// (isChordLine) is the default; a checkbox flip in the review panel wins over it.
+const lineOverrides = new Map();
+function effectiveChordLine(text){
+  if(lineOverrides.has(text)) return lineOverrides.get(text);
+  return isChordLine(text);
+}
 // Groups the text nodes of a contenteditable tree into "lines" (split by <br> and block elements)
 function walkLines(root){
   const lines = [];
@@ -237,7 +260,7 @@ function transposeTextNode(node, shift, targetKey, doc){
 function transposeDom(rootClone, shift, targetKey, doc){
   const lines = walkLines(rootClone);
   lines.forEach(l=>{
-    if(isChordLine(l.text)){
+    if(effectiveChordLine(l.text)){
       l.textNodes.forEach(n=>transposeTextNode(n, shift, targetKey, doc));
     }
   });
@@ -251,6 +274,7 @@ const output = document.getElementById('output');
 const shiftReadout = document.getElementById('shiftReadout');
 const strip = document.getElementById('strip');
 const copyBtn = document.getElementById('copyBtn');
+const lineChecklist = document.getElementById('lineChecklist');
 
 NOTES.forEach(n=>{
   const o1=document.createElement('option'); o1.value=n; o1.textContent=n; tomOriginal.appendChild(o1);
@@ -267,9 +291,39 @@ NOTES.forEach(n=>{
 
 input.innerHTML = '<b>       C                G</b><br>Uma cifra <i>bem</i> bonita, com <span style="color:#b8863b">negrito e cor</span><br><b>       Am               F</b><br>que eu mesmo escrevi aqui, colada do jeito que estiver';
 
+function buildChecklist(){
+  lineChecklist.innerHTML = '';
+  const lines = walkLines(input).filter(l=>l.text.trim()!=='');
+  if(lines.length===0){
+    lineChecklist.innerHTML = '<div class="checklist-empty">Nada colado ainda.</div>';
+    return;
+  }
+  lines.forEach(l=>{
+    const text = l.text;
+    const row = document.createElement('label');
+    const checked = effectiveChordLine(text);
+    row.className = 'checklist-row' + (checked ? ' is-chord' : '');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = checked;
+    cb.addEventListener('change', ()=>{
+      lineOverrides.set(text, cb.checked);
+      render();
+    });
+    const span = document.createElement('span');
+    span.className = 'checklist-text';
+    span.textContent = text.length>76 ? text.slice(0,76)+'…' : text;
+    row.appendChild(cb);
+    row.appendChild(span);
+    lineChecklist.appendChild(row);
+  });
+}
+
 function render(){
   const shift = NOTES.indexOf(tomNovo.value) - NOTES.indexOf(tomOriginal.value);
   shiftReadout.textContent = (shift>0?'+':'') + shift + ' semitons';
+
+  buildChecklist();
 
   const clone = input.cloneNode(true);
   transposeDom(clone, shift, tomNovo.value, document);
