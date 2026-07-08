@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transpositor de Cifras</title>
+<style>
+  :root{
+    --paper: #f5efe1;
+    --paper-dark: #ebe0c9;
+    --ink: #24303d;
+    --ink-soft: #6b7280;
+    --gold: #b8863b;
+    --gold-soft: #d9b878;
+    --teal: #2f6f6b;
+    --teal-soft: #dcebe9;
+    --serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    padding:40px 20px 80px;
+    background: radial-gradient(ellipse at top, #fbf7ea 0%, var(--paper) 55%, #ece0c4 100%);
+    font-family:var(--sans);
+    color:var(--ink);
+    min-height:100vh;
+  }
+  .page{
+    max-width:980px;
+    margin:0 auto;
+    background:var(--paper);
+    border-radius:14px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 20px 50px -20px rgba(36,48,61,0.35);
+    border:1px solid #ded1ac;
+    padding:44px 48px 52px;
+  }
+  header{margin-bottom:28px;}
+  .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:8px;}
+  h1{font-family:var(--serif);font-size:38px;margin:0 0 8px;font-weight:normal;letter-spacing:-0.01em;}
+  .subtitle{color:var(--ink-soft);font-size:15px;max-width:620px;line-height:1.5;margin:0;}
+  .divider{height:1px;background:linear-gradient(to right, transparent, #d8c79e, transparent);margin:30px 0;}
+  .controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:28px;margin-bottom:8px;}
+  .field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);margin-bottom:6px;font-weight:600;}
+  select{font-family:var(--serif);font-size:20px;padding:6px 10px;border:1px solid #d3c3a0;border-radius:8px;background:#fffdf7;color:var(--ink);min-width:90px;cursor:pointer;}
+  select.small{font-family:var(--sans);font-size:14px;min-width:70px;padding:7px 8px;}
+  select:focus, [contenteditable]:focus, button:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+  .shift-readout{font-family:var(--mono);font-size:14px;color:var(--teal);background:var(--teal-soft);padding:6px 12px;border-radius:20px;font-weight:600;}
+  .strip{display:flex;gap:5px;margin:22px 0 6px;}
+  .strip .dot{flex:1;text-align:center;font-family:var(--mono);font-size:11px;padding:7px 2px;border-radius:6px;color:var(--ink-soft);background:var(--paper-dark);border:1px solid transparent;transition:all .15s ease;}
+  .strip .dot.origin{border-color:var(--gold);color:var(--gold);font-weight:700;background:#fbf1de;}
+  .strip .dot.target{background:var(--teal);color:#fff;font-weight:700;}
+  .strip .dot.both{background:linear-gradient(135deg, var(--gold-soft), var(--teal));color:#fff;}
+  .panels{display:grid;grid-template-columns:1fr;gap:20px;margin-top:26px;}
+  .panel{background:#fffdf7;border:1px solid #e2d5b3;border-radius:10px;padding:18px 20px 20px;}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;}
+  .panel-head h2{font-family:var(--serif);font-size:16px;margin:0;font-weight:normal;color:var(--ink-soft);}
+  .panel-head .right{display:flex;align-items:center;gap:10px;}
+  #input, #output{
+    min-height:220px;
+    font-family:var(--mono);
+    font-size:14.5px;
+    line-height:1.65;
+    white-space:pre-wrap;
+    tab-size:4; -moz-tab-size:4;
+    color:var(--ink);
+    outline:none;
+  }
+  /* Force monospace family+size on every pasted element so column alignment stays
+     correct, no matter what font/size the source content carried. Weight, style
+     and color from the paste (bold, italic, custom colors) are left untouched. */
+  #input *, #output *{
+    font-family:var(--mono) !important;
+    font-size:14.5px !important;
+    line-height:1.65 !important;
+  }
+  [contenteditable]:empty:before{
+    content: attr(data-placeholder);
+    color:var(--ink-soft);
+    font-style:italic;
+  }
+  .chord{color:var(--teal);font-weight:700;}
+  .copy-btn{
+    font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.03em;
+    color:var(--teal);background:var(--teal-soft);border:none;padding:6px 12px;border-radius:16px;cursor:pointer;
+  }
+  .copy-btn:hover{background:#c9e2df;}
+  .copy-btn.copied{background:var(--teal);color:#fff;}
+  footer{margin-top:34px;font-size:12.5px;color:var(--ink-soft);line-height:1.6;border-top:1px solid #e2d5b3;padding-top:16px;}
+  footer strong{color:var(--ink);}
+  @media (max-width:600px){.page{padding:28px 20px 36px;}h1{font-size:28px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="eyebrow">Transpositor de cifras</div>
+    <h1>Cifrar &amp; Transpor</h1>
+    <p class="subtitle">Cole a cifra formatada (negrito, cor, fonte, tabs) direto da sua fonte. O transpositor troca só os acordes e devolve com a mesma formatação.</p>
+  </header>
+
+  <div class="divider"></div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="tomOriginal">Tom original</label>
+      <select id="tomOriginal"></select>
+    </div>
+    <div class="field">
+      <label for="tomNovo">Transformar para</label>
+      <select id="tomNovo"></select>
+    </div>
+    <div class="field">
+      <label>Diferença</label>
+      <div class="shift-readout" id="shiftReadout">0 semitons</div>
+    </div>
+    <div class="field">
+      <label for="tabSize">Tamanho do TAB</label>
+      <select id="tabSize" class="small">
+        <option value="2">2</option>
+        <option value="4" selected>4</option>
+        <option value="8">8</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-head"><h2>Cole sua cifra aqui</h2></div>
+      <div id="input" contenteditable="true" spellcheck="false" data-placeholder="Cole aqui a cifra formatada..."></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Resultado transposto</h2>
+        <div class="right"><button class="copy-btn" id="copyBtn">Copiar formatado</button></div>
+      </div>
+      <div id="output"></div>
+    </div>
+  </div>
+
+  <footer>
+    O transpositor detecta sozinho as linhas de acorde (quando a maioria das "palavras" da linha parece um acorde) e troca só essas — negrito, cor, fonte e o resto da letra ficam como colados. TABs e espaços múltiplos são preservados; use o seletor acima se o alinhamento não bater com o tamanho de TAB da sua fonte original. <strong>Limite conhecido:</strong> se um editor de origem quebrar um acorde em dois trechos de formatação diferentes no meio da palavra (raro), aquele acorde específico pode não ser reconhecido — nesse caso, cole de novo sem a formatação problemática nesse trecho.
+  </footer>
+</div>
+
+<script>
+const NOTES = ['C','Db','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+const ROW_TABLES = {
+  'C':  ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'],
+  'Db': ['Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B','C'],
+  'D':  ['D','D#','E','F','F#','G','G#','A','Bb','B','C','C#'],
+  'Eb': ['Eb','E','F','Gb','G','Ab','A','Bb','B','C','Db','D'],
+  'E':  ['E','F','F#','G','G#','A','A#','B','C','C#','D','D#'],
+  'F':  ['F','F#','G','Ab','A','Bb','B','C','Db','D','Eb','E'],
+  'F#': ['F#','G','G#','A','A#','B','C','C#','D','D#','E','E#'],
+  'G':  ['G','G#','A','Bb','B','C','C#','D','Eb','E','F','F#'],
+  'Ab': ['Ab','A','Bb','B','C','Db','D','Eb','E','F','Gb','G'],
+  'A':  ['A','A#','B','C','C#','D','D#','E','F','F#','G','G#'],
+  'Bb': ['Bb','B','C','Db','D','Eb','E','F','F#','G','Ab','A'],
+  'B':  ['B','C','C#','D','D#','E','F','F#','G','G#','A','A#'],
+};
+const NOTE_ALIASES = {C:0,'B#':0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,Fb:4,F:5,'E#':5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11,Cb:11};
+const CHORD_RE = /^([A-G])(#|b)?((?:maj13|maj11|maj9|maj7|m7b5|madd9|add9|add11|mM7|m9|m7|m6|dim7|dim|aug|sus2|sus4|sus2\/4|sus|6\/9|13|11|9|7|6|5|m)?)(\/([A-G])(#|b)?)?$/;
+
+function spellPitch(pc, targetKey){
+  const table = ROW_TABLES[targetKey];
+  const root = NOTE_ALIASES[targetKey];
+  const pos = ((pc - root) % 12 + 12) % 12;
+  return table[pos];
+}
+function shiftNote(note, shift, targetKey){
+  const idx = NOTE_ALIASES[note];
+  if(idx===undefined) return note;
+  const newPc = ((idx+shift)%12+12)%12;
+  return spellPitch(newPc, targetKey);
+}
+function transposeToken(token, shift, targetKey){
+  const m = token.match(CHORD_RE);
+  if(!m) return {text:token, isChord:false};
+  const root=m[1], acc=m[2]||'', quality=m[3]||'', bassRoot=m[5], bassAcc=m[6]||'';
+  let out = shiftNote(root+acc, shift, targetKey) + quality;
+  if(bassRoot) out += '/' + shiftNote(bassRoot+bassAcc, shift, targetKey);
+  return {text:out, isChord:true};
+}
+function isChordLine(text){
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  if(tokens.length===0) return false;
+  const matches = tokens.filter(t=>CHORD_RE.test(t)).length;
+  return matches/tokens.length >= 0.6;
+}
+// Groups the text nodes of a contenteditable tree into "lines" (split by <br> and block elements)
+function walkLines(root){
+  const lines = [];
+  let current = {textNodes: [], text: ''};
+  function pushLine(){ lines.push(current); current = {textNodes: [], text:''}; }
+  function recurse(node){
+    for(const child of Array.from(node.childNodes)){
+      if(child.nodeType===3){
+        current.textNodes.push(child);
+        current.text += child.textContent;
+      } else if(child.nodeType===1){
+        const tag = child.tagName;
+        if(tag==='BR'){ pushLine(); }
+        else if(tag==='DIV' || tag==='P' || tag==='LI'){
+          if(current.textNodes.length>0) pushLine();
+          recurse(child);
+          pushLine();
+        } else { recurse(child); }
+      }
+    }
+  }
+  recurse(root);
+  if(current.textNodes.length>0) pushLine();
+  return lines.filter(l=>l.textNodes.length>0);
+}
+// Replaces a text node in place with a mix of plain text + <span class="chord"> for transposed chords
+function transposeTextNode(node, shift, targetKey, doc){
+  const text = node.textContent;
+  const parts = text.split(/(\s+)/);
+  const frag = doc.createDocumentFragment();
+  for(const part of parts){
+    if(part==='') continue;
+    if(/^\s+$/.test(part)){ frag.appendChild(doc.createTextNode(part)); }
+    else if(CHORD_RE.test(part)){
+      const {text:t} = transposeToken(part, shift, targetKey);
+      const span = doc.createElement('span');
+      span.className='chord';
+      span.textContent = t;
+      frag.appendChild(span);
+    } else { frag.appendChild(doc.createTextNode(part)); }
+  }
+  node.parentNode.replaceChild(frag, node);
+}
+function transposeDom(rootClone, shift, targetKey, doc){
+  const lines = walkLines(rootClone);
+  lines.forEach(l=>{
+    if(isChordLine(l.text)){
+      l.textNodes.forEach(n=>transposeTextNode(n, shift, targetKey, doc));
+    }
+  });
+}
+
+const tomOriginal = document.getElementById('tomOriginal');
+const tomNovo = document.getElementById('tomNovo');
+const tabSize = document.getElementById('tabSize');
+const input = document.getElementById('input');
+const output = document.getElementById('output');
+const shiftReadout = document.getElementById('shiftReadout');
+const strip = document.getElementById('strip');
+const copyBtn = document.getElementById('copyBtn');
+
+NOTES.forEach(n=>{
+  const o1=document.createElement('option'); o1.value=n; o1.textContent=n; tomOriginal.appendChild(o1);
+  const o2=document.createElement('option'); o2.value=n; o2.textContent=n; tomNovo.appendChild(o2);
+});
+tomOriginal.value='C';
+tomNovo.value='F#';
+
+NOTES.forEach(n=>{
+  const d=document.createElement('div');
+  d.className='dot'; d.textContent=n; d.dataset.note=n;
+  strip.appendChild(d);
+});
+
+input.innerHTML = '<b>       C                G</b><br>Uma cifra <i>bem</i> bonita, com <span style="color:#b8863b">negrito e cor</span><br><b>       Am               F</b><br>que eu mesmo escrevi aqui, colada do jeito que estiver';
+
+function render(){
+  const shift = NOTES.indexOf(tomNovo.value) - NOTES.indexOf(tomOriginal.value);
+  shiftReadout.textContent = (shift>0?'+':'') + shift + ' semitons';
+
+  const clone = input.cloneNode(true);
+  transposeDom(clone, shift, tomNovo.value, document);
+  output.innerHTML = clone.innerHTML;
+
+  [...strip.children].forEach(d=>{
+    d.className='dot';
+    const isOrigin = d.dataset.note===tomOriginal.value;
+    const isTarget = d.dataset.note===tomNovo.value;
+    if(isOrigin && isTarget) d.classList.add('both');
+    else if(isOrigin) d.classList.add('origin');
+    else if(isTarget) d.classList.add('target');
+  });
+}
+
+function applyTabSize(){
+  const v = tabSize.value;
+  input.style.tabSize = v;
+  input.style.MozTabSize = v;
+  output.style.tabSize = v;
+  output.style.MozTabSize = v;
+}
+
+input.addEventListener('input', render);
+tomOriginal.addEventListener('change', render);
+tomNovo.addEventListener('change', render);
+tabSize.addEventListener('change', ()=>{ applyTabSize(); });
+
+copyBtn.addEventListener('click', async ()=>{
+  try{
+    const item = new ClipboardItem({
+      'text/html': new Blob([output.innerHTML], {type:'text/html'}),
+      'text/plain': new Blob([output.innerText], {type:'text/plain'})
+    });
+    await navigator.clipboard.write([item]);
+  }catch(e){
+    await navigator.clipboard.writeText(output.innerText);
+  }
+  copyBtn.textContent='Copiado!';
+  copyBtn.classList.add('copied');
+  setTimeout(()=>{copyBtn.textContent='Copiar formatado'; copyBtn.classList.remove('copied');}, 1500);
+});
+
+applyTabSize();
+render();
+</script>
+</body>
+</html>
