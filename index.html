@@ -179,7 +179,7 @@ const ROW_TABLES = {
   'B':  ['B','C','C#','D','D#','E','F','F#','G','G#','A','A#'],
 };
 const NOTE_ALIASES = {C:0,'B#':0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,Fb:4,F:5,'E#':5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11,Cb:11};
-const CHORD_RE = /^([A-G])(#|b)?((?:maj13|maj11|maj9|maj7|m7b5|madd9|add9|add11|mM7|m9|m7|m6|dim7|dim|aug|sus2|sus4|sus2\/4|sus|6\/9|13|11|9|7|6|5|m)?)(\/([A-G])(#|b)?)?$/;
+const CHORD_RE = /^([A-G])(#|b)?((?:maj13|maj11|maj9|maj7|m7b5|SUS|sus|4|madd9|add9|add11|mM7|m9|m7|m6|dim7|dim|aug|sus2|sus4|sus2\/4|sus|6\/9|13|11|9|7|6|5|m)?)(\/([A-G])(#|b)?)?$/;
 
 function spellPitch(pc, targetKey){
   const table = ROW_TABLES[targetKey];
